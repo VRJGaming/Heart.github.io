@@ -21,7 +21,6 @@
       --poster-color: transparent;
     }
 
-    /* Styling the DEFAULT AR Button */
     #heartViewer::part(default-ar-button) {
       bottom: 110px; 
       right: 20px;
@@ -75,7 +74,7 @@
   ar-modes="webxr scene-viewer quick-look"
   camera-controls 
   autoplay
-  animation-name="*"
+  animation-name="*" 
   interaction-prompt="none"
   exposure="1.2" 
   shadow-softness="1"
@@ -107,23 +106,31 @@
   const buttons = document.querySelectorAll('.heart-btn');
   const audio = document.getElementById("labelAudio");
 
+  // Fix: Force animation to play/reset whenever a new model loads
+  modelViewer.addEventListener('load', () => {
+    if (modelViewer.availableAnimations.length > 0) {
+      modelViewer.play();
+    }
+  });
+
   buttons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      // Toggle UI
+    btn.addEventListener('click', async () => {
       buttons.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       
-      // Update models for both platforms
+      // Update sources
       modelViewer.src = btn.dataset.src;
       modelViewer.iosSrc = btn.dataset.ios;
       
-      // Update Camera & Scale
+      // Ensure the component processes the source change before updating camera
+      await modelViewer.updateComplete;
+
       modelViewer.cameraOrbit = btn.dataset.orbit;
       modelViewer.fieldOfView = btn.dataset.fov;
 
       // Handle Audio
       if (btn.dataset.audio === "true") {
-        audio.play().catch(() => console.log("Audio needs user tap first"));
+        audio.play().catch(() => {});
       } else {
         audio.pause();
         audio.currentTime = 0;
