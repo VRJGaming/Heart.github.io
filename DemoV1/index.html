@@ -5,94 +5,78 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
   <style>
-    body { margin: 0; overflow: hidden; font-family: sans-serif; }
-    model-viewer { width: 100vw; height: 100vh; background-color: #f0f0f0; }
+    body { margin: 0; background: #1a1a1a; }
+    model-viewer { width: 100vw; height: 100vh; }
 
-    /* The Secret: This container stays visible in WebXR AR */
-    .ar-interface {
-      position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
-      display: flex; flex-direction: column; gap: 15px; align-items: center; z-index: 100;
-    }
-
-    .row { display: flex; gap: 10px; }
-    
-    .btn {
-      padding: 12px 20px; border-radius: 30px; border: none;
-      background: rgba(0, 0, 0, 0.8); color: white; font-weight: bold; cursor: pointer;
-    }
-    .btn.active { background: #e91e63; }
-
-    /* Hotspot Points */
+    /* The Hotspots - Must be visible and styled for AR */
     .dot {
-      width: 24px; height: 24px; border-radius: 50%; border: 2px solid white;
-      background: #e91e63; color: white; display: flex; align-items: center; 
-      justify-content: center; font-size: 12px; cursor: grab;
+      width: 35px; height: 35px; border-radius: 50%;
+      border: 3px solid #fff; background: #e91e63;
+      color: white; font-weight: bold; display: flex;
+      align-items: center; justify-content: center;
+      box-shadow: 0 0 15px rgba(0,0,0,0.5);
+      cursor: pointer; z-index: 1000;
+    }
+    
+    .ar-controls {
+      position: absolute; bottom: 30px; left: 50%;
+      transform: translateX(-50%); display: flex; gap: 10px;
+      z-index: 2000;
+    }
+
+    .nav-btn {
+      padding: 12px 20px; border-radius: 20px; border: none;
+      background: rgba(255,255,255,0.9); font-weight: bold;
     }
   </style>
 </head>
 <body>
 
   <model-viewer 
-    id="viewer" 
+    id="heart"
     src="./Heartmodel/Android/Heartmodel.glb" 
     ar 
-    /* WebXR is required to keep buttons visible in AR */
-    ar-modes="webxr scene-viewer quick-look" 
+    /* WebXR is MANDATORY to keep HTML buttons visible in AR */
+    ar-modes="webxr" 
     camera-controls 
-    disable-pan>
+    disable-pan
+    shadow-intensity="2">
 
-    <button slot="ar-button" style="position: absolute; top: 20px; right: 20px; padding: 10px; background: white; border-radius: 5px;">
+    <button slot="ar-button" style="position: absolute; top: 20px; right: 20px; padding: 15px; background: white; border-radius: 10px; border: none; font-weight: bold;">
       START AR
     </button>
 
-    <div class="ar-interface">
-      <div class="row">
-        <button class="btn active" id="heartBtn">HEART</button>
-        <button class="btn" id="labelBtn">LABELS</button>
-      </div>
-    </div>
+    <button slot="hotspot-a" id="point-a" class="dot" data-position="0.1 0.2 0.1" data-normal="0 0 1">A</button>
+    <button slot="hotspot-b" id="point-b" class="dot" data-position="-0.1 0.2 0.1" data-normal="0 0 1" style="background: #222;">B</button>
 
-    <button id="point-a" slot="hotspot-a" class="dot" data-position="0.2 0.1 0" data-normal="0 0 1">A</button>
-    <button id="point-b" slot="hotspot-b" class="dot" data-position="-0.2 0.1 0" data-normal="0 0 1" style="background:#222">B</button>
+    <div class="ar-controls">
+      <button class="nav-btn" onclick="document.querySelector('#heart').src='./Heartmodel/Android/Heartmodel.glb'">HEART</button>
+      <button class="nav-btn" onclick="document.querySelector('#heart').src='./Heartmodel/Android/HeartLabels.glb'">LABELS</button>
+    </div>
 
   </model-viewer>
 
   <script>
-    const viewer = document.querySelector('#viewer');
-    
-    // Model Switching Logic
-    document.getElementById('heartBtn').onclick = (e) => {
-      viewer.src = "./Heartmodel/Android/Heartmodel.glb";
-      updateActive(e.target);
-    };
-    document.getElementById('labelBtn').onclick = (e) => {
-      viewer.src = "./Heartmodel/Android/HeartLabels.glb";
-      updateActive(e.target);
-    };
-
-    function updateActive(btn) {
-      document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-    }
-
-    // Drag A to B Rotation Logic
+    const viewer = document.querySelector('#heart');
     let isDragging = false;
-    const pointA = document.getElementById('point-a');
-    const pointB = document.getElementById('point-b');
 
-    pointA.addEventListener('touchstart', () => isDragging = true);
+    // Detect touch on Point A
+    document.querySelector('#point-a').addEventListener('touchstart', () => {
+      isDragging = true;
+    });
+
     window.addEventListener('touchend', () => isDragging = false);
 
     window.addEventListener('touchmove', (e) => {
       if (!isDragging) return;
-      
+
+      // Logic: Dragging finger horizontally rotates the model
       const touchX = e.touches[0].clientX;
-      const rectB = pointB.getBoundingClientRect();
+      const rectB = document.querySelector('#point-b').getBoundingClientRect();
       const bX = rectB.left + rectB.width / 2;
       
-      // Calculate rotation based on distance to B
       const distance = bX - touchX;
-      viewer.cameraOrbit = `${distance * 0.8}deg 75deg 105%`;
+      viewer.cameraOrbit = `${distance * 1.5}deg 75deg 105%`;
     });
   </script>
 </body>
