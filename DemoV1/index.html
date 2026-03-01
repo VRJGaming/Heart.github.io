@@ -21,10 +21,17 @@
       --poster-color: transparent;
     }
 
-    /* Standardized button styling for white background */
+    /* MOVE THE DEFAULT AR BUTTON UP */
+    /* This targets the built-in button so it doesn't sit behind the bottom controls */
+    #heartViewer::part(default-ar-button) {
+      bottom: 110px; /* Moves it above the bottom control bar */
+      right: 20px;   /* Standard side placement */
+    }
+
+    /* Bottom Control Bar Styling */
     .controls {
       position: absolute;
-      bottom: 40px;
+      bottom: 30px;
       left: 50%;
       transform: translateX(-50%);
       display: flex;
@@ -33,7 +40,7 @@
       background: rgba(0, 0, 0, 0.05);
       padding: 10px;
       border-radius: 50px;
-      backdrop-filter: blur(10px);
+      backdrop-filter: blur(15px);
       border: 1px solid rgba(0, 0, 0, 0.1);
     }
 
@@ -48,17 +55,15 @@
       cursor: pointer;
       transition: all 0.2s ease;
       text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
     .heart-btn.active {
       background: #4a0404;
       color: #fff;
       border-color: #4a0404;
+      box-shadow: 0 4px 12px rgba(74, 4, 4, 0.2);
     }
-
-    /* ENSURING DEFAULT AR BUTTON IS VISIBLE 
-       We removed the previous code that hid the part(default-ar-button)
-    */
   </style>
 </head>
 <body>
@@ -67,16 +72,15 @@
   id="heartViewer"
   src="./Heartmodel/Android/Heartmodel1.glb" 
   ios-src="./Heartmodel/IOS/Heartmode1.usdz"
-  ar
+  ar 
   ar-modes="webxr scene-viewer quick-look"
-  ar-placement="floor"
   camera-controls 
   autoplay
+  interaction-prompt="none"
   exposure="1.2" 
   shadow-softness="1"
   camera-orbit="0deg 75deg 20m" 
   field-of-view="10deg">
-  
   </model-viewer>
 
 <div class="controls">
@@ -104,21 +108,21 @@
 
   buttons.forEach(btn => {
     btn.addEventListener('click', () => {
-      // 1. UI Switch
+      // Update UI
       buttons.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       
-      // 2. Load Models
+      // Update Models for both platforms
       modelViewer.src = btn.dataset.src;
       modelViewer.iosSrc = btn.dataset.ios;
       
-      // 3. Apply Camera settings
+      // Update Camera
       modelViewer.cameraOrbit = btn.dataset.orbit;
       modelViewer.fieldOfView = btn.dataset.fov;
 
-      // 4. Audio Control
+      // Audio Logic
       if (btn.dataset.audio === "true") {
-        audio.play().catch(() => console.log("Interaction required for audio"));
+        audio.play().catch(() => console.log("User interaction required for audio"));
       } else {
         audio.pause();
         audio.currentTime = 0;
