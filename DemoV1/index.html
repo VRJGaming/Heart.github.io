@@ -1,78 +1,117 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Heart AR - One Finger Rotate</title>
-    
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.0/dist/mindar-image-aframe.prod.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
-
-    <style>
-      body { margin: 0; overflow: hidden; }
-      #ui {
-        position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-        display: flex; gap: 10px; z-index: 999;
-      }
-      .btn {
-        padding: 12px 20px; border-radius: 25px; border: none;
-        background: rgba(233, 30, 99, 0.9); color: white; font-weight: bold;
-      }
-    </style>
-  </head>
-  <body>
-
-    <div id="ui">
-      <button class="btn" onclick="switchModel('heart')">Heart</button>
-      <button class="btn" onclick="switchModel('labels')">Labels</button>
-    </div>
-
-    <a-scene mindar-image="imageTargetSrc: ./targets.mind; autoStart: true;" 
-             embedded vr-mode-ui="enabled: false" gesture-detector>
-      
-      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
-
-      <a-entity id="target" mindar-image-target="targetIndex: 0">
-        <a-entity 
-          id="heart-model"
-          gltf-model="./Heartmodel/Android/Heartmodel.glb"
-          position="0 0 0" 
-          scale="0.5 0.5 0.5"
-          animation-mixer
-          rotation-listener> </a-entity>
-      </a-entity>
-
-      <a-light type="ambient" intensity="1.0"></a-light>
-      <a-light type="directional" position="1 2 1" intensity="0.8"></a-light>
-    </a-scene>
-
-    <script>
-      // 1-FINGER ROTATION COMPONENT
-      AFRAME.registerComponent('rotation-listener', {
-        init: function() {
-          this.lastX = 0;
-          this.el.sceneEl.canvas.addEventListener('touchstart', (e) => {
-            this.lastX = e.touches[0].pageX;
-          });
-          this.el.sceneEl.canvas.addEventListener('touchmove', (e) => {
-            if (e.touches.length === 1) {
-              let deltaX = e.touches[0].pageX - this.lastX;
-              // Rotate only the model on its Y axis
-              this.el.object3D.rotation.y += deltaX * 0.01;
-              this.lastX = e.touches[0].pageX;
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Heart Pro AR - One Finger Fix</title>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
             }
-          });
         }
-      });
-
-      function switchModel(type) {
-        const model = document.querySelector('#heart-model');
-        if (type === 'heart') {
-          model.setAttribute('gltf-model', './Heartmodel/Android/Heartmodel.glb');
-        } else {
-          model.setAttribute('gltf-model', './Heartmodel/Android/HeartLabels.glb');
-        }
-      }
     </script>
-  </body>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: sans-serif; background: #f0f0f0; }
+        #ui-container {
+            position: absolute; bottom: 30px; width: 100%;
+            display: flex; justify-content: center; gap: 15px; z-index: 100;
+        }
+        .btn {
+            padding: 12px 25px; border-radius: 30px; border: none;
+            background: white; color: black; font-weight: bold;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2); cursor: pointer;
+        }
+        .btn.active { background: #e91e63; color: white; }
+    </style>
+</head>
+<body>
+
+<div id="ui-container">
+    <button class="btn active" onclick="loadHeart('./Heartmodel/Android/Heartmodel.glb')">HEART</button>
+    <button class="btn" onclick="loadHeart('./Heartmodel/Android/HeartLabels.glb')">LABELS</button>
+</div>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { ARButton } from 'three/addons/webxr/ARButton.js';
+
+    let container, scene, camera, renderer, model, mixer;
+    let clock = new THREE.Clock();
+
+    // Touch variables for 1-finger rotation
+    let isTouching = false;
+    let previousTouchX = 0;
+
+    init();
+
+    function init() {
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
+
+        // High Quality Lighting (Matching Model-Viewer)
+        const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+        scene.add(light);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+        dirLight.position.set(2, 4, 5);
+        scene.add(dirLight);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.xr.enabled = true;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping; // This gives the high-quality look
+        renderer.toneMappingExposure = 1.0;
+        document.body.appendChild(renderer.domElement);
+
+        // ADD THE AR BUTTON (This starts the camera mode)
+        document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
+
+        const loader = new GLTFLoader();
+        window.loadHeart = (path) => {
+            if (model) scene.remove(model);
+            loader.load(path, (gltf) => {
+                model = gltf.scene;
+                model.position.set(0, 0, -1); // Place 1 meter in front
+                model.scale.set(0.5, 0.5, 0.5);
+                scene.add(model);
+                
+                if (gltf.animations.length > 0) {
+                    mixer = new THREE.AnimationMixer(model);
+                    mixer.clipAction(gltf.animations[0]).play();
+                }
+            });
+        };
+
+        // LOAD INITIAL MODEL
+        loadHeart('./Heartmodel/Android/Heartmodel.glb');
+
+        // 1-FINGER ROTATION LOGIC (Working on iPhone AR)
+        window.addEventListener('touchstart', (e) => {
+            isTouching = true;
+            previousTouchX = e.touches[0].pageX;
+        });
+
+        window.addEventListener('touchmove', (e) => {
+            if (isTouching && model) {
+                const touchX = e.touches[0].pageX;
+                const deltaX = touchX - previousTouchX;
+                model.rotation.y += deltaX * 0.01; // The "Override"
+                previousTouchX = touchX;
+            }
+        });
+
+        window.addEventListener('touchend', () => isTouching = false);
+
+        renderer.setAnimationLoop(render);
+    }
+
+    function render() {
+        if (mixer) mixer.update(clock.getDelta());
+        renderer.render(scene, camera);
+    }
+</script>
+</body>
 </html>
