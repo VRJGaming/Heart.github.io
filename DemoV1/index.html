@@ -3,81 +3,136 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Heart Pro - 3D Slider & Persistent UI</title>
+  
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
+
   <style>
-    body { margin: 0; background: #1a1a1a; }
+    body { margin: 0; background-color: #000; font-family: sans-serif; overflow: hidden; }
     model-viewer { width: 100vw; height: 100vh; }
 
-    /* The Hotspots - Must be visible and styled for AR */
-    .dot {
-      width: 35px; height: 35px; border-radius: 50%;
-      border: 3px solid #fff; background: #e91e63;
-      color: white; font-weight: bold; display: flex;
-      align-items: center; justify-content: center;
-      box-shadow: 0 0 15px rgba(0,0,0,0.5);
-      cursor: pointer; z-index: 1000;
-    }
-    
-    .ar-controls {
-      position: absolute; bottom: 30px; left: 50%;
-      transform: translateX(-50%); display: flex; gap: 10px;
-      z-index: 2000;
+    /* --- THE BUTTONS (Persistent in AR) --- */
+    .controls-container {
+      position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 10px; z-index: 2000;
     }
 
     .nav-btn {
-      padding: 12px 20px; border-radius: 20px; border: none;
-      background: rgba(255,255,255,0.9); font-weight: bold;
+      padding: 14px 24px; border-radius: 30px; border: none;
+      background: rgba(255, 255, 255, 0.9); font-weight: bold;
+      cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      transition: transform 0.2s;
+    }
+    .nav-btn:active { transform: scale(0.95); }
+    .nav-btn.active { background: #e91e63; color: white; }
+
+    /* --- THE 3D SLIDER (A to B) --- */
+    .slider-handle {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: #e91e63; border: 3px solid white;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 15px rgba(233, 30, 99, 0.8);
+      cursor: grab; z-index: 1000;
+    }
+
+    .slider-track {
+      width: 20px; height: 20px; border-radius: 50%;
+      background: rgba(255, 255, 255, 0.4); border: 2px dashed #fff;
+      pointer-events: none;
+    }
+
+    /* --- AR BUTTON STYLING --- */
+    #ar-button {
+      position: absolute; top: 20px; right: 20px;
+      padding: 12px 20px; background: white; border-radius: 8px;
+      border: none; font-weight: bold; box-shadow: 0 2px 10px rgba(0,0,0,0.2);
     }
   </style>
 </head>
 <body>
 
-  <model-viewer 
-    id="heart"
+
+
+<model-viewer 
+    id="heartViewer"
     src="./Heartmodel/Android/Heartmodel.glb" 
+    ios-src="./Heartmodel/IOS/Heartmodel.usdz"
     ar 
-    /* WebXR is MANDATORY to keep HTML buttons visible in AR */
-    ar-modes="webxr" 
+    /* Priority WebXR to keep UI visible on screen */
+    ar-modes="webxr scene-viewer quick-look" 
+    ar-placement="floor"
     camera-controls 
     disable-pan
-    shadow-intensity="2">
+    shadow-intensity="2"
+    exposure="1.2">
 
-    <button slot="ar-button" style="position: absolute; top: 20px; right: 20px; padding: 15px; background: white; border-radius: 10px; border: none; font-weight: bold;">
-      START AR
-    </button>
+    <button slot="ar-button" id="ar-button">VIEW IN SPACE</button>
 
-    <button slot="hotspot-a" id="point-a" class="dot" data-position="0.1 0.2 0.1" data-normal="0 0 1">A</button>
-    <button slot="hotspot-b" id="point-b" class="dot" data-position="-0.1 0.2 0.1" data-normal="0 0 1" style="background: #222;">B</button>
-
-    <div class="ar-controls">
-      <button class="nav-btn" onclick="document.querySelector('#heart').src='./Heartmodel/Android/Heartmodel.glb'">HEART</button>
-      <button class="nav-btn" onclick="document.querySelector('#heart').src='./Heartmodel/Android/HeartLabels.glb'">LABELS</button>
+    <div class="controls-container">
+      <button class="nav-btn active" id="btn-heart">HEART</button>
+      <button class="nav-btn" id="btn-labels">LABELS</button>
     </div>
 
-  </model-viewer>
+    <button slot="hotspot-a" id="point-a" class="slider-handle" data-position="0.15 0.15 0.1" data-normal="0 0 1">
+      ↔️
+    </button>
+    <div slot="hotspot-b" id="point-b" class="slider-track" data-position="-0.15 0.15 0.1" data-normal="0 0 1"></div>
 
-  <script>
-    const viewer = document.querySelector('#heart');
-    let isDragging = false;
+</model-viewer>
 
-    // Detect touch on Point A
-    document.querySelector('#point-a').addEventListener('touchstart', () => {
-      isDragging = true;
-    });
 
-    window.addEventListener('touchend', () => isDragging = false);
 
-    window.addEventListener('touchmove', (e) => {
-      if (!isDragging) return;
+<script>
+  const viewer = document.querySelector('#heartViewer');
+  const hBtn = document.getElementById('btn-heart');
+  const lBtn = document.getElementById('btn-labels');
+  const pointA = document.getElementById('point-a');
+  const pointB = document.getElementById('point-b');
 
-      // Logic: Dragging finger horizontally rotates the model
-      const touchX = e.touches[0].clientX;
-      const rectB = document.querySelector('#point-b').getBoundingClientRect();
-      const bX = rectB.left + rectB.width / 2;
-      
-      const distance = bX - touchX;
-      viewer.cameraOrbit = `${distance * 1.5}deg 75deg 105%`;
-    });
-  </script>
+  // --- MODEL SWITCHING LOGIC ---
+  hBtn.onclick = () => {
+    viewer.src = "./Heartmodel/Android/Heartmodel.glb";
+    hBtn.classList.add('active');
+    lBtn.classList.remove('active');
+  };
+
+  lBtn.onclick = () => {
+    viewer.src = "./Heartmodel/Android/HeartLabels.glb";
+    lBtn.classList.add('active');
+    hBtn.classList.remove('active');
+  };
+
+  // --- 3D SLIDER ROTATION LOGIC (A to B) ---
+  let isDragging = false;
+
+  pointA.addEventListener('mousedown', () => isDragging = true);
+  pointA.addEventListener('touchstart', (e) => {
+    isDragging = true;
+    e.preventDefault(); // Prevents page scrolling while dragging
+  }, {passive: false});
+
+  window.addEventListener('mouseup', () => isDragging = false);
+  window.addEventListener('touchend', () => isDragging = false);
+
+  const handleDrag = (currentX) => {
+    if (!isDragging) return;
+
+    // Get Point B's live position on the screen
+    const rectB = pointB.getBoundingClientRect();
+    const bX = rectB.left + rectB.width / 2;
+    
+    // Calculate the distance from finger to B
+    const distance = bX - currentX;
+
+    // Apply rotation based on distance (the "pull" effect)
+    viewer.cameraOrbit = `${distance * 1.5}deg 75deg 105%`;
+  };
+
+  window.addEventListener('mousemove', (e) => handleDrag(e.clientX));
+  window.addEventListener('touchmove', (e) => {
+    if (isDragging) handleDrag(e.touches[0].clientX);
+  });
+</script>
+
 </body>
 </html>
