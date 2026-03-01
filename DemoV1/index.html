@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Heart Pulse Experience</title>
+  
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
   
   <style>
@@ -13,6 +14,7 @@
 
     body { 
       margin: 0; 
+ 
       background: radial-gradient(circle at center, #ffffff 0%, #e8e8e8 100%);
       overflow: hidden;
       height: 100vh;
@@ -23,10 +25,11 @@
       width: 100vw; 
       height: 100vh; 
       --poster-color: transparent;
-      /* FIX: Enables single-finger rotation on iOS/Android browsers */
+   
       touch-action: none; 
     }
 
+   
     #heartViewer::part(default-ar-button) {
       bottom: 120px; 
       right: 20px;
@@ -35,6 +38,7 @@
       border-radius: 8px;
     }
 
+ 
     .controls {
       position: absolute;
       bottom: 40px;
@@ -63,6 +67,7 @@
       transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
       text-transform: uppercase;
       letter-spacing: 0.5px;
+      white-space: nowrap;
     }
 
     .heart-btn.active {
@@ -71,14 +76,30 @@
       transform: scale(1.05);
       box-shadow: 0 4px 15px rgba(0,0,0,0.2);
     }
+
+ 
+    .ios-hint {
+      position: absolute;
+      top: 20px;
+      width: 100%;
+      text-align: center;
+      color: #888;
+      font-size: 12px;
+      pointer-events: none;
+      opacity: 0.8;
+    }
   </style>
 </head>
 <body>
- 
+
+<div class="ios-hint">Use one finger to rotate. Use AR button for real-world view.</div>
+
+
+
 <model-viewer 
   id="heartViewer"
   src="./Heartmodel/Android/Heartmodel.glb" 
- 
+  
   ios-src="./Heartmodel/IOS/Heartmodel.usdz#allowsContentScaling=0"
   ar 
   ar-modes="webxr scene-viewer quick-look"
@@ -87,10 +108,11 @@
   animation-name="*" 
   interaction-prompt="none"
   exposure="1.1" 
-  
   shadow-intensity="0"
   environment-image="neutral"
   tone-mapping="neutral"
+ 
+  disable-pan
   camera-orbit="0deg 75deg 20m" 
   field-of-view="10deg">
 </model-viewer>
@@ -118,6 +140,7 @@
   const buttons = document.querySelectorAll('.heart-btn');
   const audio = document.getElementById("labelAudio");
 
+  
   modelViewer.addEventListener('load', () => {
     if (modelViewer.availableAnimations.length > 0) {
       modelViewer.play();
@@ -126,19 +149,25 @@
 
   buttons.forEach(btn => {
     btn.addEventListener('click', async () => {
+      
       buttons.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       
+       
       modelViewer.src = btn.dataset.src;
       modelViewer.iosSrc = btn.dataset.ios;
+      
       
       await modelViewer.updateComplete;
 
       modelViewer.cameraOrbit = btn.dataset.orbit;
       modelViewer.fieldOfView = btn.dataset.fov;
 
+      
       if (btn.dataset.audio === "true") {
-        audio.play().catch(() => {});
+        audio.play().catch(() => {
+          console.log("User interaction required for audio");
+        });
       } else {
         audio.pause();
         audio.currentTime = 0;
