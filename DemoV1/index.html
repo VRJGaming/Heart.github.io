@@ -2,134 +2,40 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Heart Pro - Custom AR Gestures</title>
-  
+  <title>Heart Pro AR - One Finger Rotation</title>
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
-
   <style>
-    :root { --accent: #e91e63; }
-    body { margin: 0; background: radial-gradient(circle, #fff 0%, #cfcfcf 100%); overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-
-    model-viewer {
-      width: 100vw;
-      height: 100vh;
-      touch-action: none; /* Prevents browser scrolling so gestures go to the heart */
-    }
-
-    /* Professional Interaction Prompt (The Dots) */
-    .dot {
-      display: block;
-      position: absolute;
-      width: 24px;
-      height: 24px;
-      transform: translateX(-50%) translateY(-50%);
-      border-radius: 50%;
-      box-shadow: 0 0 15px rgba(0,0,0,0.5);
-      border: 2px solid white;
-      background: rgba(0,0,0,0.6);
-      pointer-events: none;
-    }
-
-    .controls {
-      position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
-      display: flex; gap: 15px; z-index: 100;
-      background: rgba(255, 255, 255, 0.9); padding: 12px 20px; border-radius: 50px;
-      backdrop-filter: blur(20px); box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-    }
-
-    .btn {
-      padding: 12px 24px; border-radius: 40px; border: none;
-      background: #111; color: white; font-weight: 700; cursor: pointer;
-      transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      font-size: 13px; text-transform: uppercase; letter-spacing: 1px;
-    }
-
-    .btn.active { background: var(--accent); transform: scale(1.1); }
-
-    #ar-button {
-      position: absolute; top: 20px; right: 20px; padding: 15px 25px;
-      background: white; border-radius: 14px; font-weight: 800;
-      border: 1px solid #ddd; box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-      cursor: pointer; z-index: 100;
+    body { margin: 0; background-color: #f7f7f7; }
+    model-viewer { width: 100vw; height: 100vh; touch-action: none; }
+    
+    .ar-button {
+      background-color: white; border-radius: 8px; border: none;
+      padding: 12px 20px; position: absolute; top: 20px; right: 20px;
+      font-weight: bold; box-shadow: 0 2px 10px rgba(0,0,0,0.2);
     }
   </style>
 </head>
 <body>
 
-  <model-viewer 
-    id="heartViewer"
-    src="./Heartmodel/Android/Heartmodel.glb" 
-    ios-src="./Heartmodel/IOS/Heartmodel.usdz"
-    
-    /* --- AR SETTINGS --- */
-    ar 
-    ar-modes="webxr scene-viewer quick-look" 
-    ar-placement="floor"
-    
-    /* --- GESTURE OVERRIDES --- */
-    camera-controls
-    disable-pan /* LOCKS position so 1 finger MUST rotate */
-    interaction-prompt="none"
-    interpolation-decay="200"
-    
-    /* --- MEDICAL VISUALS --- */
-    shadow-intensity="1.5"
-    shadow-softness="0.5"
-    exposure="1.2"
-    environment-image="neutral"
-    camera-orbit="0deg 75deg 105%"
-    autoplay>
+<model-viewer 
+  src="./Heartmodel/Android/Heartmodel.glb" 
+  ios-src="./Heartmodel/IOS/Heartmodel.usdz"
+  ar 
+  /* CRITICAL: Put webxr FIRST. This allows 1-finger rotation on iOS Safari */
+  ar-modes="webxr scene-viewer quick-look" 
+  ar-placement="floor"
+  camera-controls 
+  /* DISABLING PAN: This forces the single finger to ROTATE the model */
+  disable-pan
+  interaction-prompt="none"
+  shadow-intensity="1" 
+  exposure="1.2">
 
-    <div class="dot" slot="finger0"></div>
-    <div class="dot" slot="finger1"></div>
+  <button slot="ar-button" class="ar-button">
+    START AR (1-FINGER ROTATE)
+  </button>
 
-    <button slot="ar-button" id="ar-button">VIEW IN YOUR SPACE</button>
+</model-viewer>
 
-  </model-viewer>
-
-  <div class="controls">
-    <button class="btn active" onclick="updateModel('./Heartmodel/Android/Heartmodel.glb', this)">Anatomy</button>
-    <button class="btn" onclick="updateModel('./Heartmodel/Android/HeartLabels.glb', this)">Labels</button>
-  </div>
-
-  <script>
-    const viewer = document.querySelector('#heartViewer');
-
-    // 1. GESTURE PROMPT LOGIC (Rotation & Scaling)
-    const PROMPT_MS = 3000;
-    const REPEAT_MS = 6000;
-
-    const finger0 = {
-      x: { initialValue: 0.5, keyframes: [{frames: 1, value: 0.7}, {frames: 1, value: 0.3}, {frames: 1, value: 0.5}] },
-      y: { initialValue: 0.5, keyframes: [{frames: 1, value: 0.5}] }
-    };
-
-    const finger1 = {
-      x: { initialValue: 0.4, keyframes: [{frames: 1, value: 0.2}, {frames: 1, value: 0.4}] },
-      y: { initialValue: 0.6, keyframes: [{frames: 1, value: 0.8}, {frames: 1, value: 0.6}] }
-    };
-
-    let hasInteracted = false;
-
-    const runPrompt = () => {
-      if (!hasInteracted) {
-        viewer.interact(PROMPT_MS, finger0, finger1);
-        setTimeout(runPrompt, REPEAT_MS);
-      }
-    };
-
-    viewer.addEventListener('poster-dismissed', runPrompt, {once: true});
-    viewer.addEventListener('camera-change', (e) => {
-      if (e.detail.source === 'user-interaction') hasInteracted = true;
-    });
-
-    // 2. MODEL SWITCHING
-    window.updateModel = (path, btn) => {
-      document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      viewer.src = path;
-    };
-  </script>
 </body>
 </html>
