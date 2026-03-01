@@ -3,42 +3,45 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Heart Pulse Experience</title>
+  <title>Heart Pulse WebAR</title>
   
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
   
   <style>
-    :root {
-      --ui-accent: #e91e63;
-    }
+    :root { --ui-accent: #e91e63; }
 
     body { 
       margin: 0; 
- 
       background: radial-gradient(circle at center, #ffffff 0%, #e8e8e8 100%);
       overflow: hidden;
       height: 100vh;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: -apple-system, system-ui, sans-serif;
     }
 
     model-viewer { 
       width: 100vw; 
       height: 100vh; 
       --poster-color: transparent;
-   
       touch-action: none; 
     }
 
-   
-    #heartViewer::part(default-ar-button) {
-      bottom: 120px; 
+    /* Custom AR Button Style */
+    #ar-button {
+      position: absolute;
+      bottom: 120px;
       right: 20px;
       background-color: white;
       border: 1px solid #ddd;
-      border-radius: 8px;
+      border-radius: 50px;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      z-index: 100;
     }
 
- 
     .controls {
       position: absolute;
       bottom: 40px;
@@ -47,88 +50,82 @@
       display: flex;
       gap: 12px;
       z-index: 100;
-      background: rgba(255, 255, 255, 0.6);
-      padding: 10px;
+      background: rgba(255, 255, 255, 0.7);
+      padding: 8px;
       border-radius: 50px;
       backdrop-filter: blur(15px);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
       border: 1px solid rgba(255, 255, 255, 0.3);
     }
 
     .heart-btn {
-      padding: 12px 28px;
+      padding: 12px 24px;
       border-radius: 40px;
       border: none;
-      background: rgba(0, 0, 0, 0.05);
+      background: transparent;
       color: #333;
-      font-size: 14px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      white-space: nowrap;
+      transition: all 0.3s ease;
     }
 
     .heart-btn.active {
       background: #000;
       color: #fff;
-      transform: scale(1.05);
-      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
     }
 
- 
-    .ios-hint {
+    #error-msg {
+      display: none;
       position: absolute;
       top: 20px;
-      width: 100%;
-      text-align: center;
-      color: #888;
-      font-size: 12px;
-      pointer-events: none;
-      opacity: 0.8;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 0, 0, 0.8);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 5px;
+      z-index: 200;
     }
   </style>
 </head>
 <body>
 
- 
+<div id="error-msg">HTTPS required for AR mode!</div>
 
 <model-viewer 
   id="heartViewer"
   src="./Heartmodel/Android/Heartmodel1.glb" 
-  
-  ios-src="./Heartmodel/IOS/Heartmodel1.usdz#allowsContentScaling=0"
+  ios-src="./Heartmodel/IOS/Heartmodel1.usdz"
   ar 
   ar-modes="webxr scene-viewer quick-look"
+  ar-placement="floor"
   camera-controls 
   autoplay
   animation-name="*" 
-  interaction-prompt="none"
-  exposure="1.1" 
-  shadow-intensity="0"
+  shadow-intensity="1"
   environment-image="neutral"
-  tone-mapping="neutral"
- 
-  disable-pan
-  camera-orbit="0deg 75deg 20m" 
-  field-of-view="10deg">
+  exposure="1.2"
+  camera-orbit="0deg 75deg 20m">
+
+  <button slot="ar-button" id="ar-button">
+    <span>👋</span> VIEW IN YOUR SPACE
+  </button>
+
 </model-viewer>
+
+
 
 <div class="controls">
   <button class="heart-btn active" 
           data-src="./Heartmodel/Android/Heartmodel1.glb" 
-          data-ios="./Heartmodel/IOS/Heartmodel1.usdz#allowsContentScaling=0"
+          data-ios="./Heartmodel/IOS/Heartmodel1.usdz"
           data-orbit="0deg 75deg 20m" 
-          data-fov="10deg"
-          data-audio="false">Heart</button>
+          data-audio="false">HEART</button>
 
   <button class="heart-btn" 
           data-src="./Heartmodel/Android/HeartLabels1.glb" 
-          data-ios="./Heartmodel/IOS/HeartLabels1.usdz#allowsContentScaling=0"
+          data-ios="./Heartmodel/IOS/HeartLabels1.usdz"
           data-orbit="0deg 75deg 2.5m" 
-          data-fov="30deg"
-          data-audio="true">Labels</button>
+          data-audio="true">LABELS</button>
 </div>
 
 <audio id="labelAudio" src="./audio/heart_labels_audio.mp3" loop></audio>
@@ -138,39 +135,42 @@
   const buttons = document.querySelectorAll('.heart-btn');
   const audio = document.getElementById("labelAudio");
 
-  
-  modelViewer.addEventListener('load', () => {
-    if (modelViewer.availableAnimations.length > 0) {
-      modelViewer.play();
-    }
-  });
+  // Check for HTTPS
+  if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+    document.getElementById('error-msg').style.display = 'block';
+  }
 
   buttons.forEach(btn => {
     btn.addEventListener('click', async () => {
-      
+      // UI Update
       buttons.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       
-       
-      modelViewer.src = btn.dataset.src;
-      modelViewer.iosSrc = btn.dataset.ios;
+      // Change Models
+      // We use setAttribute to ensure the internal component state updates
+      modelViewer.setAttribute('src', btn.dataset.src);
+      modelViewer.setAttribute('ios-src', btn.dataset.ios);
       
-      
-      await modelViewer.updateComplete;
+      // Wait for model to load before adjusting camera
+      await new Promise(resolve => {
+        modelViewer.addEventListener('load', resolve, { once: true });
+      });
 
       modelViewer.cameraOrbit = btn.dataset.orbit;
-      modelViewer.fieldOfView = btn.dataset.fov;
 
-      
+      // Audio Control
       if (btn.dataset.audio === "true") {
-        audio.play().catch(() => {
-          console.log("User interaction required for audio");
-        });
+        audio.play().catch(() => console.log("Interaction required for audio"));
       } else {
         audio.pause();
         audio.currentTime = 0;
       }
     });
+  });
+
+  // Ensure animation plays on load
+  modelViewer.addEventListener('load', () => {
+    modelViewer.play();
   });
 </script>
 
