@@ -1,163 +1,149 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Heart Pulse Pro - Hybrid AR</title>
-  
-  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
-
-  <style>
-    body { margin: 0; overflow: hidden; font-family: -apple-system, sans-serif; background: #000; }
-    
-    /* Studio Background (Non-AR) */
-    #background-studio {
-      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      background: radial-gradient(circle at center, #ffffff 0%, #dcdcdc 100%);
-      z-index: -1; transition: opacity 0.5s;
-    }
-
-    /* UI Controls */
-    .controls {
-      position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
-      display: flex; gap: 12px; z-index: 1000;
-      background: rgba(255, 255, 255, 0.7); padding: 12px; border-radius: 50px;
-      backdrop-filter: blur(20px); box-shadow: 0 8px 32px rgba(0,0,0,0.15);
-    }
-
-    .heart-btn {
-      padding: 12px 24px; border-radius: 40px; border: none;
-      background: #222; color: white; font-weight: 600; cursor: pointer;
-      transition: all 0.2s; text-transform: uppercase; font-size: 12px;
-    }
-
-    .heart-btn.active { background: #e91e63; color: white; transform: scale(1.05); }
-
-    #ar-toggle {
-      position: absolute; top: 20px; right: 20px; padding: 15px 20px;
-      background: white; border-radius: 12px; z-index: 1001; cursor: pointer;
-      font-weight: bold; border: 1px solid #ddd; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Three.js Heart Pro</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: sans-serif; background: #000; }
+        #container { width: 100vw; height: 100vh; background: radial-gradient(circle at center, #ffffff 0%, #dcdcdc 100%); }
+        
+        .controls {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 10px; z-index: 10;
+            background: rgba(255,255,255,0.8); padding: 10px; border-radius: 50px; backdrop-filter: blur(10px);
+        }
+        .heart-btn {
+            padding: 10px 20px; border-radius: 20px; border: none;
+            background: #222; color: #fff; cursor: pointer; font-weight: bold;
+        }
+        .heart-btn.active { background: #e91e63; }
+        
+        #ar-btn {
+            position: absolute; top: 20px; right: 20px; padding: 15px;
+            background: #fff; border: 1px solid #ccc; border-radius: 8px; font-weight: bold; cursor: pointer; z-index: 10;
+        }
+    </style>
 </head>
 <body>
 
-  <div id="background-studio"></div>
-  <button id="ar-toggle">ENTER AR</button>
+    <div id="container"></div>
+    <button id="ar-btn">START AR</button>
 
-  <a-scene 
-    embedded 
-    arjs="sourceType: webcam; enabled: false; debugUIEnabled: false;" 
-    vr-mode-ui="enabled: false"
-    renderer="colorManagement: true; exposure: 1.2; antialias: true;">
+    <div class="controls">
+        <button class="heart-btn active" data-path="./Heartmodel/Android/Heartmodel.glb">HEART</button>
+        <button class="heart-btn" data-path="./Heartmodel/Android/HeartLabels.glb">LABELS</button>
+    </div>
 
-    <a-assets>
-      <a-asset-item id="heartModel" src="./Heartmodel/Android/Heartmodel.glb"></a-asset-item>
-    </a-assets>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
 
-    <a-entity camera position="0 1.6 0"></a-entity>
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { ARButton } from 'three/addons/webxr/ARButton.js';
 
-    <a-entity light="type: hemisphere; color: #FFF; groundColor: #666; intensity: 1.5"></a-entity>
-    <a-entity light="type: directional; intensity: 1.0; castShadow: true" position="-1 2 1"></a-entity>
-    <a-entity light="type: point; intensity: 0.5; distance: 10" position="2 1 -2"></a-entity>
+        let scene, camera, renderer, controls, loader, heart, mixer;
+        let clock = new THREE.Clock();
 
-    <a-entity
-      id="heartEntity"
-      gltf-model="#heartModel"
-      position="0 1.4 -3" 
-      scale="1.5 1.5 1.5"
-      animation-mixer
-      heart-gestures>
-    </a-entity>
+        init();
+        animate();
 
-  </a-scene>
+        function init() {
+            // 1. Scene & Camera
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 0, 5);
 
-  <div class="controls">
-    <button class="heart-btn active" data-model="./Heartmodel/Android/Heartmodel.glb" data-audio="false">Heart</button>
-    <button class="heart-btn" data-model="./Heartmodel/Android/HeartLabels.glb" data-audio="true">Labels</button>
-  </div>
+            // 2. Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.xr.enabled = true; // Enable WebXR
+            renderer.toneMapping = THREE.NeutralToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            document.getElementById('container').appendChild(renderer.domElement);
 
-  <audio id="labelAudio" src="./audio/heart_labels_audio.mp3" loop></audio>
+            // 3. Lighting (Medical Studio Setup)
+            const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+            scene.add(ambientLight);
 
-  <script>
-    // GESTURE SYSTEM: 1-Finger Rotate (Win/Mobile) + 2-Finger Scale (Mobile) + Scroll (Win)
-    AFRAME.registerComponent('heart-gestures', {
-      init: function () {
-        this.lastX = 0;
-        this.lastDist = 0;
-        this.isDragging = false;
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            dirLight.position.set(2, 2, 5);
+            scene.add(dirLight);
 
-        // Mobile Touch Events
-        window.addEventListener('touchstart', (e) => {
-          if (e.touches.length === 1) this.lastX = e.touches[0].pageX;
-          if (e.touches.length === 2) {
-            this.lastDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
-          }
+            // 4. Controls (The "Override" for 1-finger rotate & scroll zoom)
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 2;
+            controls.maxDistance = 10;
+            // This forces 1-finger rotation on mobile out of the box
+            controls.touches.ONE = THREE.TOUCH.ROTATE; 
+            controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
+
+            // 5. Model Loading
+            loader = new GLTFLoader();
+            loadModel('./Heartmodel/Android/Heartmodel.glb');
+
+            // 6. AR Setup
+            const arButton = ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] });
+            document.body.appendChild(arButton);
+            // Hide the default AR button and use our custom one to trigger it
+            arButton.style.display = 'none';
+            document.getElementById('ar-btn').addEventListener('click', () => arButton.click());
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function loadModel(path) {
+            if (heart) scene.remove(heart);
+            loader.load(path, (gltf) => {
+                heart = gltf.scene;
+                heart.position.set(0, -0.5, 0);
+                heart.scale.set(1.5, 1.5, 1.5);
+                scene.add(heart);
+
+                // Animation Support
+                if (gltf.animations.length) {
+                    mixer = new THREE.AnimationMixer(heart);
+                    gltf.animations.forEach(clip => mixer.clipAction(clip).play());
+                }
+            });
+        }
+
+        // Handle Button Clicks
+        document.querySelectorAll('.heart-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.heart-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                loadModel(btn.dataset.path);
+            });
         });
 
-        window.addEventListener('touchmove', (e) => {
-          if (e.touches.length === 1) {
-            let deltaX = e.touches[0].pageX - this.lastX;
-            this.el.object3D.rotation.y += deltaX * 0.01;
-            this.lastX = e.touches[0].pageX;
-          } else if (e.touches.length === 2) {
-            let dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
-            let factor = dist / this.lastDist;
-            this.el.object3D.scale.multiplyScalar(factor);
-            this.lastDist = dist;
-          }
-        });
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
 
-        // Windows Mouse Events
-        window.addEventListener('mousedown', (e) => { this.isDragging = true; this.lastX = e.clientX; });
-        window.addEventListener('mouseup', () => { this.isDragging = false; });
-        window.addEventListener('mousemove', (e) => {
-          if (this.isDragging) {
-            let deltaX = e.clientX - this.lastX;
-            this.el.object3D.rotation.y += deltaX * 0.01;
-            this.lastX = e.clientX;
-          }
-        });
+        function animate() {
+            renderer.setAnimationLoop(render);
+        }
 
-        // Windows Scroll to Scale
-        window.addEventListener('wheel', (e) => {
-          let delta = e.deltaY > 0 ? 0.95 : 1.05;
-          this.el.object3D.scale.multiplyScalar(delta);
-        });
-      }
-    });
-
-    // UI & AR Logic
-    const arBtn = document.querySelector('#ar-toggle');
-    const studioBg = document.querySelector('#background-studio');
-    const scene = document.querySelector('a-scene');
-    const heart = document.querySelector('#heartEntity');
-    const audio = document.getElementById("labelAudio");
-
-    arBtn.addEventListener('click', () => {
-      const isInStudio = studioBg.style.opacity !== '0';
-      studioBg.style.opacity = isInStudio ? '0' : '1';
-      arBtn.innerText = isInStudio ? 'EXIT AR' : 'ENTER AR';
-      
-      if (isInStudio) {
-        scene.setAttribute('arjs', 'enabled: true; sourceType: webcam;');
-      } else {
-        scene.setAttribute('arjs', 'enabled: false;');
-        const v = document.querySelector('video'); if(v) v.remove();
-      }
-    });
-
-    document.querySelectorAll('.heart-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.heart-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        heart.setAttribute('gltf-model', btn.dataset.model);
-        if (btn.dataset.audio === "true") audio.play().catch(() => {});
-        else { audio.pause(); audio.currentTime = 0; }
-      });
-    });
-  </script>
+        function render() {
+            const delta = clock.getDelta();
+            if (mixer) mixer.update(delta);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+    </script>
 </body>
 </html>
