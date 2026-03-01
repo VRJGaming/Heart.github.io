@@ -3,74 +3,125 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Heart Pro - Fix Buttons</title>
+  <title>Heart Pro AR - Persistent UI</title>
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
   <style>
-    body { margin: 0; height: 100vh; overflow: hidden; }
-    model-viewer { width: 100%; height: 100%; background: #eee; }
+    body { margin: 0; font-family: sans-serif; background: #f4f4f4; }
+    model-viewer { width: 100vw; height: 100vh; --poster-color: transparent; }
 
-    /* Custom AR Button - Top Right */
-    #custom-ar-button {
-      position: absolute; top: 20px; right: 20px;
-      padding: 12px 20px; background: white; color: black;
-      border: none; border-radius: 8px; font-weight: bold;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2); cursor: pointer;
-      z-index: 999;
+    /* UI Container - This stays visible in AR mode */
+    .ar-ui-overlay {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 400px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      z-index: 1000;
+      pointer-events: none; /* Allow touches to pass to model unless clicking a button */
     }
 
-    /* Model Switcher - Bottom Center */
-    /* By placing this INSIDE model-viewer, WebXR can show it in AR */
-    .button-container {
-      position: absolute; bottom: 30px; left: 50%;
-      transform: translateX(-50%); display: flex; gap: 10px;
-      z-index: 999;
+    .controls-row {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      pointer-events: auto;
     }
 
     .btn {
-      padding: 10px 20px; background: #222; color: white;
-      border: none; border-radius: 20px; cursor: pointer; font-size: 14px;
+      padding: 12px 20px;
+      border-radius: 25px;
+      border: none;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      backdrop-filter: blur(5px);
     }
+
     .btn.active { background: #e91e63; }
+
+    .slider-card {
+      background: rgba(255, 255, 255, 0.9);
+      padding: 15px;
+      border-radius: 15px;
+      pointer-events: auto;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+
+    #rotate-slider { width: 100%; accent-color: #e91e63; cursor: pointer; }
+
+    /* Custom AR Start Button */
+    #ar-button {
+      position: absolute; top: 20px; right: 20px;
+      padding: 12px 24px; border-radius: 10px; border: none;
+      background: white; font-weight: bold; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      z-index: 1000;
+    }
   </style>
 </head>
 <body>
 
-  <model-viewer 
-    id="heartViewer"
-    src="./Heartmodel/Android/Heartmodel.glb" 
-    ar 
-    /* WebXR is the ONLY mode that keeps these buttons visible in AR */
-    ar-modes="webxr scene-viewer quick-look" 
-    camera-controls 
-    disable-pan>
 
-    <button slot="ar-button" id="custom-ar-button">
-      VIEW IN SPACE
-    </button>
 
-    <div class="button-container">
-      <button class="btn active" id="btn-heart">HEART</button>
-      <button class="btn" id="btn-labels">LABELS</button>
+<model-viewer 
+  id="heartViewer"
+  src="./Heartmodel/Android/Heartmodel.glb" 
+  ar 
+  ar-modes="webxr scene-viewer" 
+  camera-controls 
+  disable-pan
+  shadow-intensity="1.5"
+  exposure="1.2"
+  environment-image="neutral">
+
+  <button slot="ar-button" id="ar-button">ENTER AR</button>
+
+  <div class="ar-ui-overlay">
+    
+    <div class="slider-card">
+      <label style="display:block; font-size: 12px; margin-bottom: 5px; font-weight:bold;">1-FINGER ROTATION CONTROL</label>
+      <input type="range" id="rotate-slider" min="0" max="360" value="0">
     </div>
 
-  </model-viewer>
+    <div class="controls-row">
+      <button class="btn active" onclick="switchModel('./Heartmodel/Android/Heartmodel.glb', this)">Anatomy</button>
+      <button class="btn" onclick="switchModel('./Heartmodel/Android/HeartLabels.glb', this)">Labels</button>
+    </div>
 
-  <script>
-    const viewer = document.querySelector('#heartViewer');
-    const btnHeart = document.querySelector('#btn-heart');
-    const btnLabels = document.querySelector('#btn-labels');
+  </div>
 
-    btnHeart.onclick = () => {
-      viewer.src = "./Heartmodel/Android/Heartmodel.glb";
-      btnHeart.classList.add('active');
-      btnLabels.classList.remove('active');
-    };
+</model-viewer>
 
-    btnLabels.onclick = () => {
-      viewer.src = "./Heartmodel/Android/HeartLabels.glb";
-      btnLabels.classList.add('active');
-      btnHeart.classList.remove('active');
-    };
-  </script>
+
+
+<script>
+  const viewer = document.querySelector('#heartViewer');
+  const slider = document.querySelector('#rotate-slider');
+
+  // Logic to Switch Models (Heart vs Labels)
+  window.switchModel = (path, btn) => {
+    viewer.src = path;
+    document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  };
+
+  // Logic for Slider Rotation
+  slider.addEventListener('input', (e) => {
+    const value = e.target.value;
+    viewer.cameraOrbit = `${value}deg 75deg 105%`;
+  });
+
+  // Keep slider in sync if user swipes with finger
+  viewer.addEventListener('camera-change', () => {
+    const orbit = viewer.getCameraOrbit();
+    const degrees = (orbit.theta * 180 / Math.PI);
+    slider.value = degrees;
+  });
+</script>
+
 </body>
 </html>
