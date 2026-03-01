@@ -2,179 +2,162 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Heart Pulse Experience</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Heart Pulse Pro - Hybrid AR</title>
   
-  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
-  
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
+
   <style>
-    :root {
-      --ui-accent: #e91e63;
+    body { margin: 0; overflow: hidden; font-family: -apple-system, sans-serif; background: #000; }
+    
+    /* Studio Background (Non-AR) */
+    #background-studio {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: radial-gradient(circle at center, #ffffff 0%, #dcdcdc 100%);
+      z-index: -1; transition: opacity 0.5s;
     }
 
-    body { 
-      margin: 0; 
- 
-      background: radial-gradient(circle at center, #ffffff 0%, #e8e8e8 100%);
-      overflow: hidden;
-      height: 100vh;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }
-
-    model-viewer { 
-      width: 100vw; 
-      height: 100vh; 
-      --poster-color: transparent;
-   
-      touch-action: none; 
-    }
-
-   
-    #heartViewer::part(default-ar-button) {
-      bottom: 120px; 
-      right: 20px;
-      background-color: white;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-    }
-
- 
+    /* UI Controls */
     .controls {
-      position: absolute;
-      bottom: 40px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 12px;
-      z-index: 100;
-      background: rgba(255, 255, 255, 0.6);
-      padding: 10px;
-      border-radius: 50px;
-      backdrop-filter: blur(15px);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-      border: 1px solid rgba(255, 255, 255, 0.3);
+      position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 12px; z-index: 1000;
+      background: rgba(255, 255, 255, 0.7); padding: 12px; border-radius: 50px;
+      backdrop-filter: blur(20px); box-shadow: 0 8px 32px rgba(0,0,0,0.15);
     }
 
     .heart-btn {
-      padding: 12px 28px;
-      border-radius: 40px;
-      border: none;
-      background: rgba(0, 0, 0, 0.05);
-      color: #333;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      white-space: nowrap;
+      padding: 12px 24px; border-radius: 40px; border: none;
+      background: #222; color: white; font-weight: 600; cursor: pointer;
+      transition: all 0.2s; text-transform: uppercase; font-size: 12px;
     }
 
-    .heart-btn.active {
-      background: #000;
-      color: #fff;
-      transform: scale(1.05);
-      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    }
+    .heart-btn.active { background: #e91e63; color: white; transform: scale(1.05); }
 
- 
-    .ios-hint {
-      position: absolute;
-      top: 20px;
-      width: 100%;
-      text-align: center;
-      color: #888;
-      font-size: 12px;
-      pointer-events: none;
-      opacity: 0.8;
+    #ar-toggle {
+      position: absolute; top: 20px; right: 20px; padding: 15px 20px;
+      background: white; border-radius: 12px; z-index: 1001; cursor: pointer;
+      font-weight: bold; border: 1px solid #ddd; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
   </style>
 </head>
 <body>
 
-<div class="ios-hint">Use one finger to rotate. Use AR button for real-world view.</div>
+  <div id="background-studio"></div>
+  <button id="ar-toggle">ENTER AR</button>
 
+  <a-scene 
+    embedded 
+    arjs="sourceType: webcam; enabled: false; debugUIEnabled: false;" 
+    vr-mode-ui="enabled: false"
+    renderer="colorManagement: true; exposure: 1.2; antialias: true;">
 
+    <a-assets>
+      <a-asset-item id="heartModel" src="./Heartmodel/Android/Heartmodel.glb"></a-asset-item>
+    </a-assets>
 
-<model-viewer 
-  id="heartViewer"
-  src="./Heartmodel/Android/Heartmodel.glb" 
-  
-  ios-src="./Heartmodel/IOS/Heartmodel.usdz#allowsContentScaling=0"
-  ar 
-  ar-modes="webxr scene-viewer quick-look"
-  camera-controls 
-  autoplay
-  animation-name="*" 
-  interaction-prompt="none"
-  exposure="1.1" 
-  shadow-intensity="0"
-  environment-image="neutral"
-  tone-mapping="neutral"
- 
-  disable-pan
-  camera-orbit="0deg 75deg 20m" 
-  field-of-view="10deg">
-</model-viewer>
+    <a-entity camera position="0 1.6 0"></a-entity>
 
-<div class="controls">
-  <button class="heart-btn active" 
-          data-src="./Heartmodel/Android/Heartmodel.glb" 
-          data-ios="./Heartmodel/IOS/Heartmodel.usdz#allowsContentScaling=0"
-          data-orbit="0deg 75deg 20m" 
-          data-fov="10deg"
-          data-audio="false">Heart</button>
+    <a-entity light="type: hemisphere; color: #FFF; groundColor: #666; intensity: 1.5"></a-entity>
+    <a-entity light="type: directional; intensity: 1.0; castShadow: true" position="-1 2 1"></a-entity>
+    <a-entity light="type: point; intensity: 0.5; distance: 10" position="2 1 -2"></a-entity>
 
-  <button class="heart-btn" 
-          data-src="./Heartmodel/Android/HeartLabels.glb" 
-          data-ios="./Heartmodel/IOS/HeartLabels.usdz#allowsContentScaling=0"
-          data-orbit="0deg 75deg 2.5m" 
-          data-fov="30deg"
-          data-audio="true">Labels</button>
-</div>
+    <a-entity
+      id="heartEntity"
+      gltf-model="#heartModel"
+      position="0 1.4 -3" 
+      scale="1.5 1.5 1.5"
+      animation-mixer
+      heart-gestures>
+    </a-entity>
 
-<audio id="labelAudio" src="./audio/heart_labels_audio.mp3" loop></audio>
+  </a-scene>
 
-<script>
-  const modelViewer = document.querySelector('#heartViewer');
-  const buttons = document.querySelectorAll('.heart-btn');
-  const audio = document.getElementById("labelAudio");
+  <div class="controls">
+    <button class="heart-btn active" data-model="./Heartmodel/Android/Heartmodel.glb" data-audio="false">Heart</button>
+    <button class="heart-btn" data-model="./Heartmodel/Android/HeartLabels.glb" data-audio="true">Labels</button>
+  </div>
 
-  
-  modelViewer.addEventListener('load', () => {
-    if (modelViewer.availableAnimations.length > 0) {
-      modelViewer.play();
-    }
-  });
+  <audio id="labelAudio" src="./audio/heart_labels_audio.mp3" loop></audio>
 
-  buttons.forEach(btn => {
-    btn.addEventListener('click', async () => {
-      
-      buttons.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      
-       
-      modelViewer.src = btn.dataset.src;
-      modelViewer.iosSrc = btn.dataset.ios;
-      
-      
-      await modelViewer.updateComplete;
+  <script>
+    // GESTURE SYSTEM: 1-Finger Rotate (Win/Mobile) + 2-Finger Scale (Mobile) + Scroll (Win)
+    AFRAME.registerComponent('heart-gestures', {
+      init: function () {
+        this.lastX = 0;
+        this.lastDist = 0;
+        this.isDragging = false;
 
-      modelViewer.cameraOrbit = btn.dataset.orbit;
-      modelViewer.fieldOfView = btn.dataset.fov;
-
-      
-      if (btn.dataset.audio === "true") {
-        audio.play().catch(() => {
-          console.log("User interaction required for audio");
+        // Mobile Touch Events
+        window.addEventListener('touchstart', (e) => {
+          if (e.touches.length === 1) this.lastX = e.touches[0].pageX;
+          if (e.touches.length === 2) {
+            this.lastDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+          }
         });
-      } else {
-        audio.pause();
-        audio.currentTime = 0;
+
+        window.addEventListener('touchmove', (e) => {
+          if (e.touches.length === 1) {
+            let deltaX = e.touches[0].pageX - this.lastX;
+            this.el.object3D.rotation.y += deltaX * 0.01;
+            this.lastX = e.touches[0].pageX;
+          } else if (e.touches.length === 2) {
+            let dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+            let factor = dist / this.lastDist;
+            this.el.object3D.scale.multiplyScalar(factor);
+            this.lastDist = dist;
+          }
+        });
+
+        // Windows Mouse Events
+        window.addEventListener('mousedown', (e) => { this.isDragging = true; this.lastX = e.clientX; });
+        window.addEventListener('mouseup', () => { this.isDragging = false; });
+        window.addEventListener('mousemove', (e) => {
+          if (this.isDragging) {
+            let deltaX = e.clientX - this.lastX;
+            this.el.object3D.rotation.y += deltaX * 0.01;
+            this.lastX = e.clientX;
+          }
+        });
+
+        // Windows Scroll to Scale
+        window.addEventListener('wheel', (e) => {
+          let delta = e.deltaY > 0 ? 0.95 : 1.05;
+          this.el.object3D.scale.multiplyScalar(delta);
+        });
       }
     });
-  });
-</script>
 
+    // UI & AR Logic
+    const arBtn = document.querySelector('#ar-toggle');
+    const studioBg = document.querySelector('#background-studio');
+    const scene = document.querySelector('a-scene');
+    const heart = document.querySelector('#heartEntity');
+    const audio = document.getElementById("labelAudio");
+
+    arBtn.addEventListener('click', () => {
+      const isInStudio = studioBg.style.opacity !== '0';
+      studioBg.style.opacity = isInStudio ? '0' : '1';
+      arBtn.innerText = isInStudio ? 'EXIT AR' : 'ENTER AR';
+      
+      if (isInStudio) {
+        scene.setAttribute('arjs', 'enabled: true; sourceType: webcam;');
+      } else {
+        scene.setAttribute('arjs', 'enabled: false;');
+        const v = document.querySelector('video'); if(v) v.remove();
+      }
+    });
+
+    document.querySelectorAll('.heart-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.heart-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        heart.setAttribute('gltf-model', btn.dataset.model);
+        if (btn.dataset.audio === "true") audio.play().catch(() => {});
+        else { audio.pause(); audio.currentTime = 0; }
+      });
+    });
+  </script>
 </body>
 </html>
