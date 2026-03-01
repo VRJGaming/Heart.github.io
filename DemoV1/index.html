@@ -2,33 +2,32 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Heart Pulse Experience</title>
   
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
   
   <style>
-    :root { --ui-accent: #e91e63; }
-
     body { 
       margin: 0; 
-      background: radial-gradient(circle at center, #ffffff 0%, #e8e8e8 100%);
+      background: radial-gradient(circle at center, #4a0404 0%, #1a0202 70%, #000000 100%); 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica; 
       overflow: hidden;
       height: 100vh;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
 
     model-viewer { 
       width: 100vw; 
       height: 100vh; 
       --poster-color: transparent;
-      touch-action: none; 
     }
 
-    /* Moves the default AR button up so it doesn't block the Heart/Labels buttons */
-    model-viewer::part(default-ar-button) {
-      bottom: 120px; 
+    /* Moving the DEFAULT AR Button up to avoid overlap */
+    #heartViewer::part(default-ar-button) {
+      bottom: 110px; 
       right: 20px;
+      background-color: white;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
     }
 
     .controls {
@@ -39,30 +38,31 @@
       display: flex;
       gap: 12px;
       z-index: 100;
-      background: rgba(255, 255, 255, 0.6);
-      padding: 10px;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 8px;
       border-radius: 50px;
-      backdrop-filter: blur(15px);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-      border: 1px solid rgba(255, 255, 255, 0.3);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .heart-btn {
-      padding: 12px 28px;
+      padding: 12px 24px;
       border-radius: 40px;
-      border: none;
-      background: rgba(0, 0, 0, 0.05);
-      color: #333;
-      font-size: 14px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(0, 0, 0, 0.4);
+      color: white;
+      font-size: 13px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all 0.3s ease;
       text-transform: uppercase;
+      letter-spacing: 1px;
     }
 
     .heart-btn.active {
-      background: #000;
-      color: #fff;
+      background: #fff;
+      color: #000;
+      border-color: #fff;
     }
   </style>
 </head>
@@ -77,12 +77,11 @@
   ar-placement="floor"
   camera-controls 
   autoplay
-  animation-name="*" 
   interaction-prompt="none"
-  exposure="1.1" 
-  shadow-intensity="1"
-  environment-image="neutral"
-  camera-orbit="0deg 75deg 20m">
+  exposure="1.2" 
+  shadow-softness="1"
+  camera-orbit="0deg 75deg 20m" 
+  field-of-view="10deg">
 </model-viewer>
 
 
@@ -91,11 +90,15 @@
   <button class="heart-btn active" 
           data-src="./Heartmodel/Android/Heartmodel1.glb" 
           data-ios="./Heartmodel/IOS/Heartmodel1.usdz"
+          data-orbit="0deg 75deg 20m" 
+          data-fov="10deg"
           data-audio="false">Heart</button>
 
   <button class="heart-btn" 
           data-src="./Heartmodel/Android/HeartLabels1.glb" 
           data-ios="./Heartmodel/IOS/HeartLabels1.usdz"
+          data-orbit="0deg 75deg 2.5m" 
+          data-fov="30deg"
           data-audio="true">Labels</button>
 </div>
 
@@ -108,21 +111,25 @@
 
   buttons.forEach(btn => {
     btn.addEventListener('click', async () => {
-      // UI Update
+      // Toggle active UI
       buttons.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       
-      // Update AR Sources (Crucial for iOS Safari stability)
+      // Update Model Sources (Essential for AR to switch correctly)
       modelViewer.setAttribute('src', btn.dataset.src);
       modelViewer.setAttribute('ios-src', btn.dataset.ios);
       
-      // Wait for the component to process the new model
+      // Wait for the viewer to update internally
       await modelViewer.updateComplete;
+
+      // Update Camera Positioning
+      modelViewer.cameraOrbit = btn.dataset.orbit;
+      modelViewer.fieldOfView = btn.dataset.fov;
 
       // Audio Logic
       if (btn.dataset.audio === "true") {
         audio.play().catch(() => {
-          console.log("Tap anywhere on the screen first to enable audio");
+          console.warn("User must interact with the page before audio can play.");
         });
       } else {
         audio.pause();
@@ -131,7 +138,7 @@
     });
   });
 
-  // Re-trigger animation play when model changes
+  // Re-play animation whenever a new model loads
   modelViewer.addEventListener('load', () => {
     modelViewer.play();
   });
