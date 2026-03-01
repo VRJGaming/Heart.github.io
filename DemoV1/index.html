@@ -1,138 +1,142 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Heart Pro - 3D Slider & Persistent UI</title>
-  
-  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
-
-  <style>
-    body { margin: 0; background-color: #000; font-family: sans-serif; overflow: hidden; }
-    model-viewer { width: 100vw; height: 100vh; }
-
-    /* --- THE BUTTONS (Persistent in AR) --- */
-    .controls-container {
-      position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
-      display: flex; gap: 10px; z-index: 2000;
-    }
-
-    .nav-btn {
-      padding: 14px 24px; border-radius: 30px; border: none;
-      background: rgba(255, 255, 255, 0.9); font-weight: bold;
-      cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-      transition: transform 0.2s;
-    }
-    .nav-btn:active { transform: scale(0.95); }
-    .nav-btn.active { background: #e91e63; color: white; }
-
-    /* --- THE 3D SLIDER (A to B) --- */
-    .slider-handle {
-      width: 40px; height: 40px; border-radius: 50%;
-      background: #e91e63; border: 3px solid white;
-      display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 0 15px rgba(233, 30, 99, 0.8);
-      cursor: grab; z-index: 1000;
-    }
-
-    .slider-track {
-      width: 20px; height: 20px; border-radius: 50%;
-      background: rgba(255, 255, 255, 0.4); border: 2px dashed #fff;
-      pointer-events: none;
-    }
-
-    /* --- AR BUTTON STYLING --- */
-    #ar-button {
-      position: absolute; top: 20px; right: 20px;
-      padding: 12px 20px; background: white; border-radius: 8px;
-      border: none; font-weight: bold; box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Heart Model Viewer</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: sans-serif; background: #000; }
+        #container { width: 100vw; height: 100vh; background: radial-gradient(circle at center, #ffffff 0%, #dcdcdc 100%); }
+        
+        /* Model Selection UI */
+        .controls {
+            position: absolute; 
+            bottom: 80px; /* Moved up to avoid overlapping default AR button */
+            left: 50%; 
+            transform: translateX(-50%);
+            display: flex; 
+            gap: 10px; 
+            z-index: 10;
+            background: rgba(255,255,255,0.8); 
+            padding: 10px; 
+            border-radius: 50px; 
+            backdrop-filter: blur(10px);
+        }
+        .heart-btn {
+            padding: 10px 20px; 
+            border-radius: 20px; 
+            border: none;
+            background: #222; 
+            color: #fff; 
+            cursor: pointer; 
+            font-weight: bold;
+        }
+        .heart-btn.active { background: #e91e63; }
+    </style>
 </head>
 <body>
 
+    <div id="container"></div>
 
-
-<model-viewer 
-    id="heartViewer"
-    src="./Heartmodel/Android/Heartmodel.glb" 
-    ios-src="./Heartmodel/IOS/Heartmodel.usdz"
-    ar 
-    /* Priority WebXR to keep UI visible on screen */
-    ar-modes="webxr scene-viewer quick-look" 
-    ar-placement="floor"
-    camera-controls 
-    disable-pan
-    shadow-intensity="2"
-    exposure="1.2">
-
-    <button slot="ar-button" id="ar-button">VIEW IN SPACE</button>
-
-    <div class="controls-container">
-      <button class="nav-btn active" id="btn-heart">HEART</button>
-      <button class="nav-btn" id="btn-labels">LABELS</button>
+    <div class="controls">
+        <button class="heart-btn active" data-path="./Heartmodel/Android/Heartmodel.glb">HEART</button>
+        <button class="heart-btn" data-path="./Heartmodel/Android/HeartLabels.glb">LABELS</button>
     </div>
 
-    <button slot="hotspot-a" id="point-a" class="slider-handle" data-position="0.15 0.15 0.1" data-normal="0 0 1">
-      ↔️
-    </button>
-    <div slot="hotspot-b" id="point-b" class="slider-track" data-position="-0.15 0.15 0.1" data-normal="0 0 1"></div>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
 
-</model-viewer>
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { ARButton } from 'three/addons/webxr/ARButton.js';
 
+        let scene, camera, renderer, controls, loader, heart, mixer;
+        let clock = new THREE.Clock();
 
+        init();
 
-<script>
-  const viewer = document.querySelector('#heartViewer');
-  const hBtn = document.getElementById('btn-heart');
-  const lBtn = document.getElementById('btn-labels');
-  const pointA = document.getElementById('point-a');
-  const pointB = document.getElementById('point-b');
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 0, 5);
 
-  // --- MODEL SWITCHING LOGIC ---
-  hBtn.onclick = () => {
-    viewer.src = "./Heartmodel/Android/Heartmodel.glb";
-    hBtn.classList.add('active');
-    lBtn.classList.remove('active');
-  };
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.xr.enabled = true; 
+            renderer.toneMapping = THREE.NeutralToneMapping;
+            document.getElementById('container').appendChild(renderer.domElement);
 
-  lBtn.onclick = () => {
-    viewer.src = "./Heartmodel/Android/HeartLabels.glb";
-    lBtn.classList.add('active');
-    hBtn.classList.remove('active');
-  };
+            // Lighting
+            scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            dirLight.position.set(2, 2, 5);
+            scene.add(dirLight);
 
-  // --- 3D SLIDER ROTATION LOGIC (A to B) ---
-  let isDragging = false;
+            // Interaction
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.touches.ONE = THREE.TOUCH.ROTATE; 
+            controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
 
-  pointA.addEventListener('mousedown', () => isDragging = true);
-  pointA.addEventListener('touchstart', (e) => {
-    isDragging = true;
-    e.preventDefault(); // Prevents page scrolling while dragging
-  }, {passive: false});
+            // Model Loading
+            loader = new GLTFLoader();
+            loadModel('./Heartmodel/Android/Heartmodel.glb');
 
-  window.addEventListener('mouseup', () => isDragging = false);
-  window.addEventListener('touchend', () => isDragging = false);
+            // --- DEFAULT AR BUTTON LOGIC ---
+            // Append the default button directly to the body.
+            // It will appear at the bottom of the screen automatically.
+            document.body.appendChild(ARButton.createButton(renderer, { 
+                requiredFeatures: ['hit-test'] 
+            }));
 
-  const handleDrag = (currentX) => {
-    if (!isDragging) return;
+            window.addEventListener('resize', onWindowResize);
+            renderer.setAnimationLoop(render);
+        }
 
-    // Get Point B's live position on the screen
-    const rectB = pointB.getBoundingClientRect();
-    const bX = rectB.left + rectB.width / 2;
-    
-    // Calculate the distance from finger to B
-    const distance = bX - currentX;
+        function loadModel(path) {
+            if (heart) scene.remove(heart);
+            loader.load(path, (gltf) => {
+                heart = gltf.scene;
+                heart.position.set(0, -0.5, 0);
+                heart.scale.set(1.5, 1.5, 1.5);
+                scene.add(heart);
 
-    // Apply rotation based on distance (the "pull" effect)
-    viewer.cameraOrbit = `${distance * 1.5}deg 75deg 105%`;
-  };
+                if (gltf.animations.length) {
+                    mixer = new THREE.AnimationMixer(heart);
+                    gltf.animations.forEach(clip => mixer.clipAction(clip).play());
+                }
+            });
+        }
 
-  window.addEventListener('mousemove', (e) => handleDrag(e.clientX));
-  window.addEventListener('touchmove', (e) => {
-    if (isDragging) handleDrag(e.touches[0].clientX);
-  });
-</script>
+        document.querySelectorAll('.heart-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.heart-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                loadModel(btn.dataset.path);
+            });
+        });
 
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function render() {
+            const delta = clock.getDelta();
+            if (mixer) mixer.update(delta);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+    </script>
 </body>
 </html>
