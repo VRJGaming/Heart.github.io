@@ -1,71 +1,99 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
   <style>
-    body { margin: 0; background: #f0f0f0; }
-    model-viewer { width: 100vw; height: 100vh; }
+    body { margin: 0; overflow: hidden; font-family: sans-serif; }
+    model-viewer { width: 100vw; height: 100vh; background-color: #f0f0f0; }
 
-    /* Points Styling */
-    .btn {
-      width: 30px; height: 30px; border-radius: 50%; border: 2px solid white;
-      background: rgba(233, 30, 99, 0.8); color: white; font-weight: bold;
-      cursor: grab; display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 0 10px rgba(0,0,0,0.3); font-size: 10px;
+    /* The Secret: This container stays visible in WebXR AR */
+    .ar-interface {
+      position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+      display: flex; flex-direction: column; gap: 15px; align-items: center; z-index: 100;
     }
-    .btn:active { cursor: grabbing; transform: scale(1.2); background: #2196F3; }
+
+    .row { display: flex; gap: 10px; }
     
-    #point-b { background: rgba(0, 0, 0, 0.5); }
-    
-    /* Help Label */
-    .label { position: absolute; top: 10%; width: 100%; text-align: center; font-weight: bold; pointer-events: none; }
+    .btn {
+      padding: 12px 20px; border-radius: 30px; border: none;
+      background: rgba(0, 0, 0, 0.8); color: white; font-weight: bold; cursor: pointer;
+    }
+    .btn.active { background: #e91e63; }
+
+    /* Hotspot Points */
+    .dot {
+      width: 24px; height: 24px; border-radius: 50%; border: 2px solid white;
+      background: #e91e63; color: white; display: flex; align-items: center; 
+      justify-content: center; font-size: 12px; cursor: grab;
+    }
   </style>
 </head>
 <body>
 
-  <div class="label">DRAG "A" TO "B" TO ROTATE</div>
+  <model-viewer 
+    id="viewer" 
+    src="./Heartmodel/Android/Heartmodel.glb" 
+    ar 
+    /* WebXR is required to keep buttons visible in AR */
+    ar-modes="webxr scene-viewer quick-look" 
+    camera-controls 
+    disable-pan>
 
-  <model-viewer id="viewer" src="./Heartmodel/Android/Heartmodel.glb" ar ar-modes="webxr" camera-controls disable-pan>
-    
-    <button slot="ar-button" style="position: absolute; top: 20px; right: 20px; padding: 10px;">START AR</button>
+    <button slot="ar-button" style="position: absolute; top: 20px; right: 20px; padding: 10px; background: white; border-radius: 5px;">
+      START AR
+    </button>
 
-    <button id="point-a" slot="hotspot-a" class="btn" data-position="0.2 0.5 0" data-normal="0 0 1">A</button>
-    
-    <button id="point-b" slot="hotspot-b" class="btn" data-position="-0.2 0.5 0" data-normal="0 0 1">B</button>
+    <div class="ar-interface">
+      <div class="row">
+        <button class="btn active" id="heartBtn">HEART</button>
+        <button class="btn" id="labelBtn">LABELS</button>
+      </div>
+    </div>
+
+    <button id="point-a" slot="hotspot-a" class="dot" data-position="0.2 0.1 0" data-normal="0 0 1">A</button>
+    <button id="point-b" slot="hotspot-b" class="dot" data-position="-0.2 0.1 0" data-normal="0 0 1" style="background:#222">B</button>
 
   </model-viewer>
 
   <script>
     const viewer = document.querySelector('#viewer');
-    const pointA = document.querySelector('#point-a');
-    const pointB = document.querySelector('#point-b');
     
+    // Model Switching Logic
+    document.getElementById('heartBtn').onclick = (e) => {
+      viewer.src = "./Heartmodel/Android/Heartmodel.glb";
+      updateActive(e.target);
+    };
+    document.getElementById('labelBtn').onclick = (e) => {
+      viewer.src = "./Heartmodel/Android/HeartLabels.glb";
+      updateActive(e.target);
+    };
+
+    function updateActive(btn) {
+      document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
+    // Drag A to B Rotation Logic
     let isDragging = false;
+    const pointA = document.getElementById('point-a');
+    const pointB = document.getElementById('point-b');
 
-    // We detect the drag from A
-    pointA.addEventListener('mousedown', () => isDragging = true);
     pointA.addEventListener('touchstart', () => isDragging = true);
-
-    window.addEventListener('mouseup', () => isDragging = false);
     window.addEventListener('touchend', () => isDragging = false);
 
-    window.addEventListener('mousemove', (e) => handleMove(e.clientX, e.clientY));
-    window.addEventListener('touchmove', (e) => handleMove(e.touches[0].clientX, e.touches[0].clientY));
-
-    function handleMove(x, y) {
+    window.addEventListener('touchmove', (e) => {
       if (!isDragging) return;
-
-      // Get Point B's screen position
+      
+      const touchX = e.touches[0].clientX;
       const rectB = pointB.getBoundingClientRect();
       const bX = rectB.left + rectB.width / 2;
       
-      // Calculate horizontal distance from finger to B
-      const distance = bX - x;
-
-      // If dragging toward B, rotate the model
-      // We map the horizontal drag to the camera orbit
-      viewer.cameraOrbit = `${distance * 0.5}deg 75deg 105%`;
-    }
+      // Calculate rotation based on distance to B
+      const distance = bX - touchX;
+      viewer.cameraOrbit = `${distance * 0.8}deg 75deg 105%`;
+    });
   </script>
 </body>
 </html>
