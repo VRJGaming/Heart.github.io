@@ -1,105 +1,135 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Heart Pro - Custom AR Gestures</title>
-    
-    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Heart Pro - Custom AR Gestures</title>
+  
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
 
-    <style>
-        :root { --accent-color: #e91e63; }
-        body { margin: 0; background: radial-gradient(circle, #fff 0%, #dcdcdc 100%); overflow: hidden; font-family: sans-serif; }
+  <style>
+    :root { --accent: #e91e63; }
+    body { margin: 0; background: radial-gradient(circle, #fff 0%, #cfcfcf 100%); overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
 
-        model-viewer {
-            width: 100vw;
-            height: 100vh;
-            /* Essential: Tells the browser the model handles the touch */
-            touch-action: none; 
-        }
+    model-viewer {
+      width: 100vw;
+      height: 100vh;
+      touch-action: none; /* Prevents browser scrolling so gestures go to the heart */
+    }
 
-        /* UI Styling */
-        .controls {
-            position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
-            display: flex; gap: 15px; z-index: 100;
-            background: rgba(255, 255, 255, 0.8); padding: 12px; border-radius: 50px;
-            backdrop-filter: blur(20px); box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        }
+    /* Professional Interaction Prompt (The Dots) */
+    .dot {
+      display: block;
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      transform: translateX(-50%) translateY(-50%);
+      border-radius: 50%;
+      box-shadow: 0 0 15px rgba(0,0,0,0.5);
+      border: 2px solid white;
+      background: rgba(0,0,0,0.6);
+      pointer-events: none;
+    }
 
-        .btn {
-            padding: 12px 25px; border-radius: 30px; border: none;
-            background: #222; color: white; font-weight: bold; cursor: pointer;
-            transition: 0.3s; text-transform: uppercase; font-size: 12px;
-        }
+    .controls {
+      position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 15px; z-index: 100;
+      background: rgba(255, 255, 255, 0.9); padding: 12px 20px; border-radius: 50px;
+      backdrop-filter: blur(20px); box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    }
 
-        .btn.active { background: var(--accent-color); }
+    .btn {
+      padding: 12px 24px; border-radius: 40px; border: none;
+      background: #111; color: white; font-weight: 700; cursor: pointer;
+      transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      font-size: 13px; text-transform: uppercase; letter-spacing: 1px;
+    }
 
-        #ar-prompt {
-            position: absolute; top: 20px; right: 20px; padding: 15px;
-            background: white; border-radius: 12px; font-weight: bold;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid #eee;
-        }
-    </style>
+    .btn.active { background: var(--accent); transform: scale(1.1); }
+
+    #ar-button {
+      position: absolute; top: 20px; right: 20px; padding: 15px 25px;
+      background: white; border-radius: 14px; font-weight: 800;
+      border: 1px solid #ddd; box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      cursor: pointer; z-index: 100;
+    }
+  </style>
 </head>
 <body>
 
-
-
-<model-viewer 
+  <model-viewer 
     id="heartViewer"
     src="./Heartmodel/Android/Heartmodel.glb" 
     ios-src="./Heartmodel/IOS/Heartmodel.usdz"
     
-    /* --- AR CONFIGURATION --- */
+    /* --- AR SETTINGS --- */
     ar 
-    /* WebXR is the ONLY mode that allows 1-finger rotation in AR on iOS */
     ar-modes="webxr scene-viewer quick-look" 
     ar-placement="floor"
     
-    /* --- ROTATION OVERRIDE --- */
+    /* --- GESTURE OVERRIDES --- */
     camera-controls
-    /* disable-pan forces 1-finger to rotate instead of sliding the camera */
-    disable-pan
+    disable-pan /* LOCKS position so 1 finger MUST rotate */
     interaction-prompt="none"
     interpolation-decay="200"
     
-    /* --- VISUALS --- */
-    shadow-intensity="1"
+    /* --- MEDICAL VISUALS --- */
+    shadow-intensity="1.5"
     shadow-softness="0.5"
     exposure="1.2"
     environment-image="neutral"
     camera-orbit="0deg 75deg 105%"
-    auto-rotate-delay="0">
+    autoplay>
 
-    <button slot="ar-button" id="ar-prompt">ENTER AR EXPERIENCE</button>
-</model-viewer>
+    <div class="dot" slot="finger0"></div>
+    <div class="dot" slot="finger1"></div>
 
-<div class="controls">
-    <button class="btn active" onclick="updateModel('./Heartmodel/Android/Heartmodel.glb', this)">Heart</button>
+    <button slot="ar-button" id="ar-button">VIEW IN YOUR SPACE</button>
+
+  </model-viewer>
+
+  <div class="controls">
+    <button class="btn active" onclick="updateModel('./Heartmodel/Android/Heartmodel.glb', this)">Anatomy</button>
     <button class="btn" onclick="updateModel('./Heartmodel/Android/HeartLabels.glb', this)">Labels</button>
-</div>
+  </div>
 
-
-
-<script>
+  <script>
     const viewer = document.querySelector('#heartViewer');
 
-    function updateModel(path, btn) {
-        // Update Buttons
-        document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        
-        // Switch Model
-        viewer.src = path;
-    }
+    // 1. GESTURE PROMPT LOGIC (Rotation & Scaling)
+    const PROMPT_MS = 3000;
+    const REPEAT_MS = 6000;
 
-    // Optional: Log when entering AR to confirm mode
-    viewer.addEventListener('ar-status', (event) => {
-        if(event.detail.status === 'session-started') {
-            console.log("AR Started in mode: " + viewer.arMode);
-        }
+    const finger0 = {
+      x: { initialValue: 0.5, keyframes: [{frames: 1, value: 0.7}, {frames: 1, value: 0.3}, {frames: 1, value: 0.5}] },
+      y: { initialValue: 0.5, keyframes: [{frames: 1, value: 0.5}] }
+    };
+
+    const finger1 = {
+      x: { initialValue: 0.4, keyframes: [{frames: 1, value: 0.2}, {frames: 1, value: 0.4}] },
+      y: { initialValue: 0.6, keyframes: [{frames: 1, value: 0.8}, {frames: 1, value: 0.6}] }
+    };
+
+    let hasInteracted = false;
+
+    const runPrompt = () => {
+      if (!hasInteracted) {
+        viewer.interact(PROMPT_MS, finger0, finger1);
+        setTimeout(runPrompt, REPEAT_MS);
+      }
+    };
+
+    viewer.addEventListener('poster-dismissed', runPrompt, {once: true});
+    viewer.addEventListener('camera-change', (e) => {
+      if (e.detail.source === 'user-interaction') hasInteracted = true;
     });
-</script>
 
+    // 2. MODEL SWITCHING
+    window.updateModel = (path, btn) => {
+      document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      viewer.src = path;
+    };
+  </script>
 </body>
 </html>
