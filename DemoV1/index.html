@@ -8,8 +8,6 @@
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
   
   <style>
-    :root { --ui-accent: #e91e63; }
-
     body { 
       margin: 0; 
       background: radial-gradient(circle at center, #ffffff 0%, #e8e8e8 100%);
@@ -22,74 +20,46 @@
       width: 100vw; 
       height: 100vh; 
       --poster-color: transparent;
-      touch-action: none; 
     }
 
-    /* Custom AR Button Style */
-    #ar-button {
-      position: absolute;
-      bottom: 120px;
-      right: 20px;
-      background-color: white;
-      border: 1px solid #ddd;
-      border-radius: 50px;
-      padding: 12px 20px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-weight: 600;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      z-index: 100;
+    /* Targeting the default button position if needed */
+    model-viewer::part(default-ar-button) {
+      bottom: 110px; /* Moves it up so it doesn't overlap the bottom controls */
     }
 
     .controls {
       position: absolute;
-      bottom: 40px;
+      bottom: 30px;
       left: 50%;
       transform: translateX(-50%);
       display: flex;
       gap: 12px;
       z-index: 100;
-      background: rgba(255, 255, 255, 0.7);
-      padding: 8px;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 10px 20px;
       border-radius: 50px;
-      backdrop-filter: blur(15px);
-      border: 1px solid rgba(255, 255, 255, 0.3);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     }
 
     .heart-btn {
-      padding: 12px 24px;
-      border-radius: 40px;
+      padding: 10px 20px;
+      border-radius: 30px;
       border: none;
-      background: transparent;
+      background: #eee;
       color: #333;
-      font-weight: 600;
+      font-weight: 700;
       cursor: pointer;
-      transition: all 0.3s ease;
+      transition: 0.3s;
     }
 
     .heart-btn.active {
-      background: #000;
-      color: #fff;
-    }
-
-    #error-msg {
-      display: none;
-      position: absolute;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(255, 0, 0, 0.8);
+      background: #e91e63;
       color: white;
-      padding: 10px 20px;
-      border-radius: 5px;
-      z-index: 200;
     }
   </style>
 </head>
 <body>
-
-<div id="error-msg">HTTPS required for AR mode!</div>
 
 <model-viewer 
   id="heartViewer"
@@ -100,16 +70,9 @@
   ar-placement="floor"
   camera-controls 
   autoplay
-  animation-name="*" 
   shadow-intensity="1"
   environment-image="neutral"
-  exposure="1.2"
   camera-orbit="0deg 75deg 20m">
-
-  <button slot="ar-button" id="ar-button">
-    <span>👋</span> VIEW IN YOUR SPACE
-  </button>
-
 </model-viewer>
 
 
@@ -118,13 +81,11 @@
   <button class="heart-btn active" 
           data-src="./Heartmodel/Android/Heartmodel1.glb" 
           data-ios="./Heartmodel/IOS/Heartmodel1.usdz"
-          data-orbit="0deg 75deg 20m" 
           data-audio="false">HEART</button>
 
   <button class="heart-btn" 
           data-src="./Heartmodel/Android/HeartLabels1.glb" 
           data-ios="./Heartmodel/IOS/HeartLabels1.usdz"
-          data-orbit="0deg 75deg 2.5m" 
           data-audio="true">LABELS</button>
 </div>
 
@@ -135,32 +96,19 @@
   const buttons = document.querySelectorAll('.heart-btn');
   const audio = document.getElementById("labelAudio");
 
-  // Check for HTTPS
-  if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-    document.getElementById('error-msg').style.display = 'block';
-  }
-
   buttons.forEach(btn => {
     btn.addEventListener('click', async () => {
-      // UI Update
+      // Toggle Active State
       buttons.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       
-      // Change Models
-      // We use setAttribute to ensure the internal component state updates
+      // Update Model Sources
       modelViewer.setAttribute('src', btn.dataset.src);
       modelViewer.setAttribute('ios-src', btn.dataset.ios);
       
-      // Wait for model to load before adjusting camera
-      await new Promise(resolve => {
-        modelViewer.addEventListener('load', resolve, { once: true });
-      });
-
-      modelViewer.cameraOrbit = btn.dataset.orbit;
-
-      // Audio Control
+      // Audio Logic
       if (btn.dataset.audio === "true") {
-        audio.play().catch(() => console.log("Interaction required for audio"));
+        audio.play().catch(() => console.log("User interaction required for audio"));
       } else {
         audio.pause();
         audio.currentTime = 0;
@@ -168,7 +116,7 @@
     });
   });
 
-  // Ensure animation plays on load
+  // Ensure animations play after source changes
   modelViewer.addEventListener('load', () => {
     modelViewer.play();
   });
