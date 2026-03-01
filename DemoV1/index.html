@@ -1,127 +1,71 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Heart Pro AR - Persistent UI</title>
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
   <style>
-    body { margin: 0; font-family: sans-serif; background: #f4f4f4; }
-    model-viewer { width: 100vw; height: 100vh; --poster-color: transparent; }
+    body { margin: 0; background: #f0f0f0; }
+    model-viewer { width: 100vw; height: 100vh; }
 
-    /* UI Container - This stays visible in AR mode */
-    .ar-ui-overlay {
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 90%;
-      max-width: 400px;
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-      z-index: 1000;
-      pointer-events: none; /* Allow touches to pass to model unless clicking a button */
-    }
-
-    .controls-row {
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-      pointer-events: auto;
-    }
-
+    /* Points Styling */
     .btn {
-      padding: 12px 20px;
-      border-radius: 25px;
-      border: none;
-      background: rgba(0, 0, 0, 0.8);
-      color: white;
-      font-weight: bold;
-      cursor: pointer;
-      backdrop-filter: blur(5px);
+      width: 30px; height: 30px; border-radius: 50%; border: 2px solid white;
+      background: rgba(233, 30, 99, 0.8); color: white; font-weight: bold;
+      cursor: grab; display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3); font-size: 10px;
     }
-
-    .btn.active { background: #e91e63; }
-
-    .slider-card {
-      background: rgba(255, 255, 255, 0.9);
-      padding: 15px;
-      border-radius: 15px;
-      pointer-events: auto;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    }
-
-    #rotate-slider { width: 100%; accent-color: #e91e63; cursor: pointer; }
-
-    /* Custom AR Start Button */
-    #ar-button {
-      position: absolute; top: 20px; right: 20px;
-      padding: 12px 24px; border-radius: 10px; border: none;
-      background: white; font-weight: bold; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      z-index: 1000;
-    }
+    .btn:active { cursor: grabbing; transform: scale(1.2); background: #2196F3; }
+    
+    #point-b { background: rgba(0, 0, 0, 0.5); }
+    
+    /* Help Label */
+    .label { position: absolute; top: 10%; width: 100%; text-align: center; font-weight: bold; pointer-events: none; }
   </style>
 </head>
 <body>
 
+  <div class="label">DRAG "A" TO "B" TO ROTATE</div>
 
-
-<model-viewer 
-  id="heartViewer"
-  src="./Heartmodel/Android/Heartmodel.glb" 
-  ar 
-  ar-modes="webxr scene-viewer" 
-  camera-controls 
-  disable-pan
-  shadow-intensity="1.5"
-  exposure="1.2"
-  environment-image="neutral">
-
-  <button slot="ar-button" id="ar-button">ENTER AR</button>
-
-  <div class="ar-ui-overlay">
+  <model-viewer id="viewer" src="./Heartmodel/Android/Heartmodel.glb" ar ar-modes="webxr" camera-controls disable-pan>
     
-    <div class="slider-card">
-      <label style="display:block; font-size: 12px; margin-bottom: 5px; font-weight:bold;">1-FINGER ROTATION CONTROL</label>
-      <input type="range" id="rotate-slider" min="0" max="360" value="0">
-    </div>
+    <button slot="ar-button" style="position: absolute; top: 20px; right: 20px; padding: 10px;">START AR</button>
 
-    <div class="controls-row">
-      <button class="btn active" onclick="switchModel('./Heartmodel/Android/Heartmodel.glb', this)">Anatomy</button>
-      <button class="btn" onclick="switchModel('./Heartmodel/Android/HeartLabels.glb', this)">Labels</button>
-    </div>
+    <button id="point-a" slot="hotspot-a" class="btn" data-position="0.2 0.5 0" data-normal="0 0 1">A</button>
+    
+    <button id="point-b" slot="hotspot-b" class="btn" data-position="-0.2 0.5 0" data-normal="0 0 1">B</button>
 
-  </div>
+  </model-viewer>
 
-</model-viewer>
+  <script>
+    const viewer = document.querySelector('#viewer');
+    const pointA = document.querySelector('#point-a');
+    const pointB = document.querySelector('#point-b');
+    
+    let isDragging = false;
 
+    // We detect the drag from A
+    pointA.addEventListener('mousedown', () => isDragging = true);
+    pointA.addEventListener('touchstart', () => isDragging = true);
 
+    window.addEventListener('mouseup', () => isDragging = false);
+    window.addEventListener('touchend', () => isDragging = false);
 
-<script>
-  const viewer = document.querySelector('#heartViewer');
-  const slider = document.querySelector('#rotate-slider');
+    window.addEventListener('mousemove', (e) => handleMove(e.clientX, e.clientY));
+    window.addEventListener('touchmove', (e) => handleMove(e.touches[0].clientX, e.touches[0].clientY));
 
-  // Logic to Switch Models (Heart vs Labels)
-  window.switchModel = (path, btn) => {
-    viewer.src = path;
-    document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-  };
+    function handleMove(x, y) {
+      if (!isDragging) return;
 
-  // Logic for Slider Rotation
-  slider.addEventListener('input', (e) => {
-    const value = e.target.value;
-    viewer.cameraOrbit = `${value}deg 75deg 105%`;
-  });
+      // Get Point B's screen position
+      const rectB = pointB.getBoundingClientRect();
+      const bX = rectB.left + rectB.width / 2;
+      
+      // Calculate horizontal distance from finger to B
+      const distance = bX - x;
 
-  // Keep slider in sync if user swipes with finger
-  viewer.addEventListener('camera-change', () => {
-    const orbit = viewer.getCameraOrbit();
-    const degrees = (orbit.theta * 180 / Math.PI);
-    slider.value = degrees;
-  });
-</script>
-
+      // If dragging toward B, rotate the model
+      // We map the horizontal drag to the camera orbit
+      viewer.cameraOrbit = `${distance * 0.5}deg 75deg 105%`;
+    }
+  </script>
 </body>
 </html>
